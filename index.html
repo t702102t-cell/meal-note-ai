@@ -73,15 +73,20 @@
     .total-val span { font-size: 14px; font-weight: 500; }
     .sub-info { font-size: 12px; color: #c6d9c9; margin: 2px 0 0; }
 
-    .meal-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
-    .meal-tab {
-      flex: 1; padding: 10px 0; border-radius: 12px;
+    .view-tabs, .meal-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+    .view-tab, .meal-tab {
+      flex: 1; padding: 10px 0; border-radius: 10px;
       background: var(--card); border: 1px solid var(--line);
       color: var(--muted); font-weight: 700; font-size: 14px;
       text-align: center;
     }
-    .meal-tab.is-active {
+    .view-tab.is-active, .meal-tab.is-active {
       background: var(--green); color: #fff; border-color: var(--green);
+    }
+    .app-view { display: none; }
+    .app-view.is-visible { display: block; }
+    .meal-tab {
+      padding: 8px 0;
     }
 
     .ai-voice-card {
@@ -97,7 +102,7 @@
       display: flex; align-items: center; justify-content: space-between;
       margin-bottom: 10px;
     }
-    .voice-btn-group { display: flex; gap: 8px; }
+    .voice-btn-group, .prompt-actions { display: flex; gap: 8px; }
     .voice-btn {
       flex: 1; background: var(--green-soft); color: var(--green);
       padding: 10px; border-radius: 10px; font-weight: 700; font-size: 13px;
@@ -109,13 +114,62 @@
       border-radius: 10px; font-weight: 700; font-size: 13px; text-decoration: none;
       display: inline-flex; align-items: center; justify-content: center;
     }
-
-    .paste-box {
-      margin-top: 10px; display: flex; gap: 6px;
+    .copy-btn {
+      background: var(--yellow); color: var(--ink); padding: 10px 12px;
+      border-radius: 10px; font-weight: 700; font-size: 13px;
     }
-    .paste-input {
-      flex: 1; border: 1px dashed var(--green); border-radius: 8px;
-      padding: 8px; font-size: 12px; background: #fdfdf9; color: var(--ink);
+    .text-route {
+      margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line);
+    }
+    .text-route textarea { min-height: 60px; }
+    .text-route-btn {
+      width: 100%; margin-top: 6px; padding: 9px 12px; border-radius: 8px;
+      background: var(--green-soft); color: var(--green); font-size: 13px; font-weight: 700;
+    }
+    .field-label { display: block; margin: 12px 0 5px; font-size: 12px; font-weight: 700; }
+    .paste-input, .prompt-input {
+      display: block; width: 100%; min-height: 72px; resize: vertical;
+      border: 1px solid var(--line); border-radius: 8px;
+      padding: 9px; font-size: 12px; background: #fdfdf9; color: var(--ink);
+      user-select: text;
+    }
+    .prompt-input { min-height: 88px; border-style: dashed; }
+    .paste-box { margin-top: 10px; display: flex; gap: 6px; align-items: stretch; }
+    .paste-box .paste-input { flex: 1; min-width: 0; }
+    .chart-section {
+      background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+      padding: 14px; margin-bottom: 12px;
+    }
+    .chart-section h2 { margin: 0; font-size: 15px; }
+    .chart-note { margin: 4px 0 12px; color: var(--muted); font-size: 11px; }
+    .chart-plot {
+      height: 190px; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 5px; position: relative; padding-bottom: 20px;
+    }
+    .chart-column {
+      min-width: 0; display: flex; flex-direction: column; justify-content: flex-end;
+      align-items: center; gap: 3px; position: relative; z-index: 1;
+    }
+    .chart-value { font: 700 9px/1.2 'DM Sans', sans-serif; white-space: nowrap; }
+    .chart-track {
+      height: 142px; width: 100%; display: flex; align-items: flex-end;
+      justify-content: center; background: #edf0e8; border-radius: 5px 5px 0 0;
+    }
+    .chart-fill {
+      width: 72%; min-height: 0; background: var(--green); border-radius: 4px 4px 0 0;
+    }
+    .chart-fill.is-below { background: var(--coral); }
+    .chart-fill.calories { background: #d8a536; }
+    .chart-day { color: var(--muted); font-size: 9px; white-space: nowrap; }
+    .target-line {
+      position: absolute; left: 0; right: 0; z-index: 2; border-top: 1px dashed var(--coral);
+      pointer-events: none;
+    }
+    .target-line span {
+      position: absolute; right: 0; top: -15px; padding: 1px 4px;
+      background: var(--card); color: var(--coral); font-size: 9px; font-weight: 700;
+    }
+    .weekly-summary { margin: 0 0 12px; color: var(--green); font-weight: 700; font-size: 13px;
     }
     .apply-btn {
       background: var(--green); color: #fff; padding: 0 12px;
@@ -155,6 +209,12 @@
     </header>
 
     <main>
+      <nav class="view-tabs" aria-label="表示切替">
+        <button class="view-tab is-active" data-view="meals">食事記録</button>
+        <button class="view-tab" data-view="weekly">7日グラフ</button>
+      </nav>
+
+      <section class="app-view is-visible" id="mealsView">
       <section class="summary-card">
         <div>
           <span style="font-size:10px; color:#b8ccbc; font-weight:700;">TOTAL</span>
@@ -171,15 +231,27 @@
 
       <section class="ai-voice-card">
         <div class="ai-title">
-          <span>🎙️ 音声入力・Google AI連携</span>
+          <span>🎙️ 音声入力・AI連携</span>
           <span id="voiceStatus" style="font-size:11px; font-weight: normal; color:var(--muted);">待機中</span>
         </div>
         <div class="voice-btn-group">
           <button class="voice-btn" id="startVoiceBtn">🎤 話して入力</button>
-          <a class="ai-link-btn" id="openGeminiBtn" href="https://gemini.google.com" target="_blank" rel="noreferrer" style="display:none;">AIへ送る ↗</a>
+          <button class="copy-btn" id="copyPromptBtn" type="button">文面をコピー</button>
         </div>
-        <div class="paste-box" id="pasteBox" style="display:none;">
-          <input class="paste-input" id="aiResultInput" placeholder="AIの回答をここに貼り付け">
+        <p class="chart-note">最大20秒聞き取ります。途中でボタンを押すと停止できます。</p>
+        <div class="text-route">
+          <label class="field-label" for="mealTextInput">文章から入力（食事名・素材名・量）</label>
+          <textarea class="paste-input" id="mealTextInput" placeholder="例：鶏むね肉150g、白ごはん1杯、ゆで卵1個"></textarea>
+          <button class="text-route-btn" id="makePromptFromTextBtn" type="button">文章からAI用文面を作成</button>
+        </div>
+        <label class="field-label" for="aiPromptInput">AIに送る文面</label>
+        <textarea class="prompt-input" id="aiPromptInput" placeholder="「話して入力」の認識結果がここに表示されます。文面をコピーしてAIに貼り付けてください。"></textarea>
+        <div class="prompt-actions">
+          <a class="ai-link-btn" id="openGeminiBtn" href="https://gemini.google.com" target="_blank" rel="noreferrer">Geminiを開く ↗</a>
+        </div>
+        <label class="field-label" for="aiResultInput">AIのJSON回答</label>
+        <div class="paste-box" id="pasteBox">
+          <textarea class="paste-input" id="aiResultInput" placeholder='例: {"food":"ごはん","calories":250,"protein":4.0}'></textarea>
           <button class="apply-btn" id="applyAiBtn">反映</button>
         </div>
       </section>
@@ -230,6 +302,21 @@
           </div>
         </article>
       </section>
+      </section>
+
+      <section class="app-view" id="weeklyView">
+        <p class="weekly-summary" id="weeklySummary">直近7日間を集計しています</p>
+        <section class="chart-section">
+          <h2>タンパク質</h2>
+          <p class="chart-note">1日150gが目標です。目標未満は赤、達成日は緑で表示します。</p>
+          <div class="chart-plot" id="proteinChart" role="img" aria-label="直近7日間のタンパク質量"></div>
+        </section>
+        <section class="chart-section">
+          <h2>摂取カロリー</h2>
+          <p class="chart-note">直近7日間の日ごとの合計です。</p>
+          <div class="chart-plot" id="calorieChart" role="img" aria-label="直近7日間の摂取カロリー"></div>
+        </section>
+      </section>
     </main>
 
     <footer>
@@ -239,8 +326,16 @@
 
   <script>
     const STORAGE_KEY = 'meal-note-ai-state-v1';
+    const PROTEIN_GOAL = 150;
     let currentTab = 'breakfast';
     let recognizedText = '';
+    let dailyRecords = {};
+    let isListening = false;
+    let recognitionDeadline = 0;
+    let recognitionStopTimer;
+    let recognitionRestartTimer;
+    let userStoppedRecognition = false;
+    let recognitionCanRestart = true;
 
     function $(id) { return document.getElementById(id); }
 
@@ -252,7 +347,15 @@
       return Array.from(document.querySelectorAll('.food-item'));
     }
 
+    function dateKey(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
     function saveState() {
+      const today = dateKey(new Date());
       const state = {};
       getMealCards().forEach(card => {
         const mealKey = card.dataset.meal;
@@ -263,7 +366,8 @@
         }));
         state[mealKey] = rows;
       });
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      dailyRecords[today] = state;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 2, days: dailyRecords }));
     }
 
     function loadState() {
@@ -271,7 +375,13 @@
       if (!raw) return;
 
       try {
-        const state = JSON.parse(raw);
+        const stored = JSON.parse(raw);
+        if (stored.days && typeof stored.days === 'object') {
+          dailyRecords = stored.days;
+        } else {
+          dailyRecords[dateKey(new Date())] = stored;
+        }
+        const state = dailyRecords[dateKey(new Date())] || {};
         getMealCards().forEach(card => {
           const mealKey = card.dataset.meal;
           const rows = state[mealKey] || [];
@@ -290,6 +400,19 @@
       }
     }
 
+    function switchView(viewName) {
+      document.querySelectorAll('.view-tab').forEach(tab => {
+        tab.classList.toggle('is-active', tab.dataset.view === viewName);
+      });
+      $('mealsView').classList.toggle('is-visible', viewName === 'meals');
+      $('weeklyView').classList.toggle('is-visible', viewName === 'weekly');
+      if (viewName === 'weekly') renderWeeklyCharts();
+    }
+
+    document.querySelectorAll('.view-tab').forEach(tab => {
+      tab.addEventListener('click', () => switchView(tab.dataset.view));
+    });
+
     document.querySelectorAll('.meal-tab').forEach(tab => {
       tab.addEventListener('click', () => {
         document.querySelectorAll('.meal-tab').forEach(t => t.classList.remove('is-active'));
@@ -306,58 +429,139 @@
     if (SpeechRecognition) {
       recognition = new SpeechRecognition();
       recognition.lang = 'ja-JP';
+      recognition.continuous = true;
       recognition.interimResults = false;
 
       recognition.onstart = () => {
-        $('voiceStatus').textContent = '音声聞き取り中...';
+        isListening = true;
+        $('voiceStatus').textContent = '音声聞き取り中（最大20秒）...';
         $('startVoiceBtn').classList.add('recording');
         $('startVoiceBtn').textContent = '⏹ 録音停止';
       };
 
       recognition.onresult = (event) => {
-        recognizedText = event.results[0][0].transcript;
-        $('voiceStatus').textContent = `認識: "${recognizedText}"`;
-
-        const prompt = `以下の食事の「食品名」「カロリー(kcal)」「タンパク質(g)」の推定値を、必ず次のJSON形式のみで出力してください。他テキスト不要。\nJSON形式: {"food": "食品名", "calories": 000, "protein": 00.0}\n食事内容: ${recognizedText}`;
-
-        const copyPrompt = async () => {
-          try {
-            await navigator.clipboard.writeText(prompt);
-            alert('プロンプトを自動コピーしました！\n「AIへ送る」ボタンを押して貼り付けてください。');
-          } catch (error) {
-            $('aiResultInput').value = prompt;
-            alert('クリップボードの利用ができなかったため、入力欄にプロンプトを表示しました。\nその内容をAIに貼り付けてください。');
-          }
-          $('openGeminiBtn').style.display = 'inline-flex';
-          $('pasteBox').style.display = 'flex';
-        };
-
-        copyPrompt();
+        const newText = Array.from(event.results)
+          .slice(event.resultIndex)
+          .filter(result => result.isFinal)
+          .map(result => result[0].transcript)
+          .join('');
+        if (!newText) return;
+        recognizedText += newText;
+        setAiPrompt(recognizedText, '音声認識');
       };
 
-      recognition.onerror = () => {
-        $('voiceStatus').textContent = 'エラーが発生しました';
+      recognition.onerror = (event) => {
+        const errors = {
+          'not-allowed': 'マイクを許可してください',
+          'service-not-allowed': '音声認識サービスを利用できません',
+          network: '通信エラーです。接続を確認してください',
+          'no-speech': '音声を認識できませんでした。もう一度話してください',
+          'audio-capture': 'マイクを利用できません'
+        };
+        $('voiceStatus').textContent = errors[event.error] || `音声エラー: ${event.error || '不明'}`;
+        recognitionCanRestart = event.error === 'no-speech';
+        if (!recognitionCanRestart) {
+          userStoppedRecognition = true;
+          clearTimeout(recognitionStopTimer);
+          clearTimeout(recognitionRestartTimer);
+        }
         resetVoiceBtn();
       };
 
       recognition.onend = () => {
         resetVoiceBtn();
+        if (userStoppedRecognition || !recognitionCanRestart) return;
+        if (Date.now() >= recognitionDeadline) {
+          $('voiceStatus').textContent = '20秒間の聞き取りが終了しました';
+          return;
+        }
+        clearTimeout(recognitionRestartTimer);
+        recognitionRestartTimer = setTimeout(() => {
+          if (userStoppedRecognition || Date.now() >= recognitionDeadline) return;
+          try {
+            recognition.start();
+          } catch (error) {
+            recognitionCanRestart = false;
+            $('voiceStatus').textContent = `聞き取りを再開できません: ${error.message}`;
+          }
+        }, 250);
       };
     } else {
       $('voiceStatus').textContent = 'お使いのブラウザは音声入力非対応です';
     }
 
     function resetVoiceBtn() {
+      isListening = false;
       $('startVoiceBtn').classList.remove('recording');
       $('startVoiceBtn').textContent = '🎤 話して入力';
     }
 
+    function makeAiPrompt(foodDescription) {
+      return `以下の食事の「食品名」「カロリー(kcal)」「タンパク質(g)」の推定値を、必ず次のJSON形式のみで出力してください。他テキスト不要。\nJSON形式: {"food": "食品名", "calories": 000, "protein": 00.0}\n食事内容: ${foodDescription}`;
+    }
+
+    function setAiPrompt(foodDescription, source) {
+      const description = foodDescription.trim();
+      if (!description) {
+        $('voiceStatus').textContent = '食事名や素材名を入力してください';
+        return false;
+      }
+      recognizedText = description;
+      $('aiPromptInput').value = makeAiPrompt(description);
+      $('voiceStatus').textContent = `${source}からAI用文面を作成しました。コピーしてAIに貼り付けてください`;
+      return true;
+    }
+
+    $('makePromptFromTextBtn').addEventListener('click', () => {
+      setAiPrompt($('mealTextInput').value, '文章入力');
+    });
+
     $('startVoiceBtn').addEventListener('click', () => {
       if (!recognition) return;
+      if (isListening) {
+        userStoppedRecognition = true;
+        clearTimeout(recognitionStopTimer);
+        clearTimeout(recognitionRestartTimer);
+        recognition.stop();
+        $('voiceStatus').textContent = '聞き取りを終了しました';
+        return;
+      }
+
+      recognizedText = '';
+      $('aiPromptInput').value = '';
+      userStoppedRecognition = false;
+      recognitionCanRestart = true;
+      recognitionDeadline = Date.now() + 20000;
+      clearTimeout(recognitionStopTimer);
+      recognitionStopTimer = setTimeout(() => {
+        userStoppedRecognition = true;
+        if (isListening) recognition.stop();
+        resetVoiceBtn();
+        $('voiceStatus').textContent = '20秒間の聞き取りが終了しました';
+      }, 20000);
       try {
         recognition.start();
       } catch (error) {
-        recognition.stop();
+        userStoppedRecognition = true;
+        clearTimeout(recognitionStopTimer);
+        $('voiceStatus').textContent = `開始できません: ${error.message}`;
+        resetVoiceBtn();
+      }
+    });
+
+    $('copyPromptBtn').addEventListener('click', async () => {
+      const prompt = $('aiPromptInput').value.trim();
+      if (!prompt) {
+        $('voiceStatus').textContent = '先に「話して入力」を押してください';
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(prompt);
+        $('voiceStatus').textContent = 'AIに送る文面をコピーしました';
+      } catch (error) {
+        $('aiPromptInput').focus();
+        $('aiPromptInput').select();
+        $('voiceStatus').textContent = '文面を選択しました。長押ししてコピーしてください';
       }
     });
 
@@ -379,8 +583,8 @@
         const targetRow = emptyRow || card.querySelectorAll('.food-item')[0];
 
         targetRow.querySelector('.food-in').value = data.food || recognizedText || '食品';
-        targetRow.querySelector('.cal-in').value = data.calories || '';
-        targetRow.querySelector('.pro-in').value = data.protein || '';
+        targetRow.querySelector('.cal-in').value = data.calories ?? '';
+        targetRow.querySelector('.pro-in').value = data.protein ?? '';
 
         updateTotals();
         saveState();
@@ -403,6 +607,81 @@
       $('totalCalories').textContent = totalCal.toLocaleString();
       $('proteinCount').textContent = `タンパク質 ${Math.round(totalPro * 10) / 10} g`;
       saveState();
+      renderWeeklyCharts();
+    }
+
+    function getLastSevenDays() {
+      const today = new Date();
+      return Array.from({ length: 7 }, (_, index) => {
+        const day = new Date(today);
+        day.setDate(today.getDate() - (6 - index));
+        const key = dateKey(day);
+        const meals = dailyRecords[key] || {};
+        let calories = 0;
+        let protein = 0;
+        Object.values(meals).forEach(rows => {
+          (Array.isArray(rows) ? rows : []).forEach(row => {
+            calories += Number(row.calories) || 0;
+            protein += Number(row.protein) || 0;
+          });
+        });
+        return {
+          key,
+          label: `${day.getMonth() + 1}/${day.getDate()}`,
+          calories,
+          protein
+        };
+      });
+    }
+
+    function renderBarChart(containerId, days, metric, maxValue, unit, proteinTarget = false) {
+      const chart = $(containerId);
+      if (!chart) return;
+      chart.replaceChildren();
+      days.forEach(day => {
+        const value = day[metric];
+        const column = document.createElement('div');
+        column.className = 'chart-column';
+        column.setAttribute('aria-label', `${day.label}: ${value}${unit}`);
+
+        const valueLabel = document.createElement('span');
+        valueLabel.className = 'chart-value';
+        valueLabel.textContent = value ? `${Math.round(value)}${unit}` : '0';
+
+        const track = document.createElement('div');
+        track.className = 'chart-track';
+        const fill = document.createElement('div');
+        fill.className = `chart-fill${metric === 'calories' ? ' calories' : ''}${proteinTarget && value < PROTEIN_GOAL ? ' is-below' : ''}`;
+        fill.style.height = `${value ? Math.max(2, Math.min(100, value / maxValue * 100)) : 0}%`;
+        track.append(fill);
+
+        const dayLabel = document.createElement('span');
+        dayLabel.className = 'chart-day';
+        dayLabel.textContent = day.label;
+        column.append(valueLabel, track, dayLabel);
+        chart.append(column);
+      });
+      if (proteinTarget) {
+        const line = document.createElement('div');
+        line.className = 'target-line';
+        line.style.bottom = `calc(20px + 142px * ${Math.min(PROTEIN_GOAL / maxValue, 1)})`;
+        const label = document.createElement('span');
+        label.textContent = '150g';
+        line.append(label);
+        chart.append(line);
+      }
+    }
+
+    function renderWeeklyCharts() {
+      const days = getLastSevenDays();
+      if (!$('proteinChart')) return;
+      const proteinMax = Math.max(PROTEIN_GOAL, Math.ceil(Math.max(...days.map(day => day.protein)) / 50) * 50);
+      const calorieMax = Math.max(500, Math.ceil(Math.max(...days.map(day => day.calories)) / 500) * 500);
+      const proteinTotal = days.reduce((sum, day) => sum + day.protein, 0);
+      const calorieTotal = days.reduce((sum, day) => sum + day.calories, 0);
+      $('weeklySummary').textContent = `7日間のタンパク質 ${Math.round(proteinTotal)}g ／ カロリー ${Math.round(calorieTotal).toLocaleString()}kcal`;
+      renderBarChart('proteinChart', days, 'protein', proteinMax, 'g', true);
+      renderBarChart('calorieChart', days, 'calories', calorieMax, 'kcal');
     }
 
     document.querySelectorAll('.input-field').forEach(input => {
