@@ -185,7 +185,12 @@
 
     .food-list { display: grid; gap: 10px; }
     .food-item {
-      display: grid; grid-template-columns: 1fr 70px 60px; gap: 6px;
+      display: grid; grid-template-columns: minmax(0, 1fr) 64px 54px 38px; gap: 5px;
+      align-items: center;
+    }
+    .delete-food-btn {
+      width: 38px; height: 38px; border-radius: 8px; background: #f6e2dc;
+      color: #9a3f31; font-size: 11px; font-weight: 700; padding: 0;
     }
     .input-field {
       width: 100%; padding: 10px; border: 1px solid var(--line);
@@ -251,7 +256,7 @@
         </div>
         <label class="field-label" for="aiResultInput">AIのJSON回答</label>
         <div class="paste-box" id="pasteBox">
-          <textarea class="paste-input" id="aiResultInput" placeholder='例: {"food":"ごはん","calories":250,"protein":4.0}'></textarea>
+          <textarea class="paste-input" id="aiResultInput" placeholder='例: {"items":[{"food":"ごはん","calories":250,"protein":4.0}]}'></textarea>
           <button class="apply-btn" id="applyAiBtn">反映</button>
         </div>
       </section>
@@ -345,6 +350,48 @@
 
     function getFoodRows() {
       return Array.from(document.querySelectorAll('.food-item'));
+    }
+
+    function createFoodRow() {
+      const row = document.createElement('div');
+      row.className = 'food-item';
+      [
+        ['food-in', '食品名', 'text', ''],
+        ['num-input cal-in', 'kcal', 'number', 'numeric'],
+        ['num-input pro-in', 'g', 'number', 'decimal']
+      ].forEach(([className, placeholder, type, inputMode]) => {
+        const input = document.createElement('input');
+        input.className = `input-field ${className}`;
+        input.placeholder = placeholder;
+        input.type = type;
+        if (inputMode) input.inputMode = inputMode;
+        row.append(input);
+      });
+      return row;
+    }
+
+    function ensureFoodRows() {
+      getMealCards().forEach(card => {
+        const list = card.querySelector('.food-list');
+        while (list.querySelectorAll('.food-item').length < 15) {
+          list.append(createFoodRow());
+        }
+        list.querySelectorAll('.food-item').forEach(row => {
+          if (row.querySelector('.delete-food-btn')) return;
+          const button = document.createElement('button');
+          button.className = 'delete-food-btn';
+          button.type = 'button';
+          button.textContent = '削除';
+          button.setAttribute('aria-label', `${row.querySelector('.food-in').placeholder}欄を削除`);
+          button.addEventListener('click', () => {
+            row.querySelector('.food-in').value = '';
+            row.querySelector('.cal-in').value = '';
+            row.querySelector('.pro-in').value = '';
+            updateTotals();
+          });
+          row.append(button);
+        });
+      });
     }
 
     function dateKey(date) {
@@ -497,7 +544,8 @@
     }
 
     function makeAiPrompt(foodDescription) {
-      return `以下の食事の「食品名」「カロリー(kcal)」「タンパク質(g)」の推定値を、必ず次のJSON形式のみで出力してください。他テキスト不要。\nJSON形式: {"food": "食品名", "calories": 000, "protein": 00.0}\n食事内容: ${foodDescription}`;
+      const mealName = document.querySelector('.meal-tab.is-active')?.textContent.trim() || '食事';
+      return `次の${mealName}に含まれる食品をそれぞれ分けて、食品名・カロリー(kcal)・タンパク質(g)を推定してください。必ず次のJSON形式のみで出力し、説明文は不要です。食品が複数ある場合はすべてitems配列に含めてください。\nJSON形式: {"items":[{"food":"食品名","calories":000,"protein":00.0}]}\n食事内容: ${foodDescription}`;
     }
 
     function setAiPrompt(foodDescription, source) {
@@ -571,27 +619,35 @@
       if (!jsonMatch) throw new Error('JSONが見つかりません');
       const data = JSON.parse(jsonMatch[0]);
       if (!data || typeof data !== 'object') throw new Error('JSONの形式が不正です');
-      return data;
+      const items = Array.isArray(data) ? data : Array.isArray(data.items) ? data.items : [data];
+      if (!items.length || items.some(item => !item || typeof item !== 'object' || Array.isArray(item))) {
+        throw new Error('食品データの形式が不正です');
+      }
+      return items;
     }
 
     $('applyAiBtn').addEventListener('click', () => {
       const text = $('aiResultInput').value;
       try {
-        const data = parseAiResult(text);
+        const items = parseAiResult(text);
         const card = document.querySelector(`[data-meal="${currentTab}"]`);
-        const emptyRow = Array.from(card.querySelectorAll('.food-item')).find(row => !row.querySelector('.food-in').value);
-        const targetRow = emptyRow || card.querySelectorAll('.food-item')[0];
-
-        targetRow.querySelector('.food-in').value = data.food || recognizedText || '食品';
-        targetRow.querySelector('.cal-in').value = data.calories ?? '';
-        targetRow.querySelector('.pro-in').value = data.protein ?? '';
+        const emptyRows = Array.from(card.querySelectorAll('.food-item')).filter(row => !row.querySelector('.food-in').value);
+        if (items.length > emptyRows.length) {
+          throw new Error(`空欄が足りません。残り${emptyRows.length}件分を入力できます`);
+        }
+        items.forEach((item, index) => {
+          const row = emptyRows[index];
+          row.querySelector('.food-in').value = item.food || recognizedText || '食品';
+          row.querySelector('.cal-in').value = item.calories ?? '';
+          row.querySelector('.pro-in').value = item.protein ?? '';
+        });
 
         updateTotals();
         saveState();
         $('aiResultInput').value = '';
         $('voiceStatus').textContent = '反映完了！';
       } catch (error) {
-        alert('AIの返答から数値を取得できませんでした。テキストを直接確認してください。');
+        alert(error.message || 'AIの返答から食品データを取得できませんでした。テキストを確認してください。');
       }
     });
 
@@ -684,6 +740,7 @@
       renderBarChart('calorieChart', days, 'calories', calorieMax, 'kcal');
     }
 
+    ensureFoodRows();
     document.querySelectorAll('.input-field').forEach(input => {
       input.addEventListener('input', () => {
         updateTotals();
