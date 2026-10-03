@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#2e6b56">
+  <title>Meal Note | AI音声アシスト</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap');
+
+    :root {
+      --paper: #f5f1e8;
+      --card: #fffdf8;
+      --ink: #26302a;
+      --muted: #7c8178;
+      --line: #e3ded3;
+      --green: #2e6b56;
+      --green-soft: #dce8db;
+      --yellow: #efc85b;
+      --coral: #db795f;
+      --shadow: 0 4px 16px rgba(57, 55, 42, .08);
+      --safe-area-bottom: env(safe-area-inset-bottom, 12px);
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      min-height: 100%;
+    }
+    body {
+      color: var(--ink);
+      background: var(--paper);
+      font-family: 'Zen Kaku Gothic New', sans-serif;
+      user-select: none;
+    }
+
+    button, input, textarea { font: inherit; }
+    button { cursor: pointer; border: none; outline: none; }
+
+    .app-shell {
+      max-width: 500px;
+      margin: 0 auto;
+      padding: 16px 16px calc(20px + var(--safe-area-bottom));
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand-mark {
+      width: 36px; height: 36px;
+      display: grid; place-items: center;
+      border-radius: 10px;
+      background: var(--green); color: #fff;
+      font-weight: 900; font-size: 18px;
+    }
+    .brand h1 { margin: 0; font: 700 18px/1.1 'DM Sans', sans-serif; }
+
+    .summary-card {
+      background: var(--green); color: #fff;
+      padding: 16px 20px; border-radius: 18px;
+      display: flex; align-items: center; justify-content: space-between;
+      box-shadow: var(--shadow); margin-bottom: 16px;
+    }
+    .total-val { font: 700 32px/1 'DM Sans', sans-serif; margin: 4px 0; }
+    .total-val span { font-size: 14px; font-weight: 500; }
+    .sub-info { font-size: 12px; color: #c6d9c9; margin: 2px 0 0; }
+
+    .meal-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+    .meal-tab {
+      flex: 1; padding: 10px 0; border-radius: 12px;
+      background: var(--card); border: 1px solid var(--line);
+      color: var(--muted); font-weight: 700; font-size: 14px;
+      text-align: center;
+    }
+    .meal-tab.is-active {
+      background: var(--green); color: #fff; border-color: var(--green);
+    }
+
+    .ai-voice-card {
+      background: var(--card);
+      border: 1.5px solid var(--green);
+      border-radius: 16px;
+      padding: 14px;
+      margin-bottom: 16px;
+      box-shadow: var(--shadow);
+    }
+    .ai-title {
+      font-size: 13px; font-weight: 700; color: var(--green);
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .voice-btn-group { display: flex; gap: 8px; }
+    .voice-btn {
+      flex: 1; background: var(--green-soft); color: var(--green);
+      padding: 10px; border-radius: 10px; font-weight: 700; font-size: 13px;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .voice-btn.recording { background: var(--coral); color: #fff; }
+    .ai-link-btn {
+      background: var(--green); color: #fff; padding: 10px 14px;
+      border-radius: 10px; font-weight: 700; font-size: 13px; text-decoration: none;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+
+    .paste-box {
+      margin-top: 10px; display: flex; gap: 6px;
+    }
+    .paste-input {
+      flex: 1; border: 1px dashed var(--green); border-radius: 8px;
+      padding: 8px; font-size: 12px; background: #fdfdf9; color: var(--ink);
+    }
+    .apply-btn {
+      background: var(--green); color: #fff; padding: 0 12px;
+      border-radius: 8px; font-size: 12px; font-weight: 700;
+    }
+
+    .meal-card {
+      display: none; background: var(--card); border-radius: 18px;
+      border: 1px solid var(--line); padding: 16px; box-shadow: var(--shadow);
+      margin-bottom: 16px;
+    }
+    .meal-card.is-visible { display: block; }
+
+    .food-list { display: grid; gap: 10px; }
+    .food-item {
+      display: grid; grid-template-columns: 1fr 70px 60px; gap: 6px;
+    }
+    .input-field {
+      width: 100%; padding: 10px; border: 1px solid var(--line);
+      border-radius: 10px; background: #fffefa; font-size: 13px; color: var(--ink);
+    }
+    .num-input { text-align: right; }
+
+    footer {
+      margin-top: auto; text-align: center; font-size: 11px; color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">食</div>
+        <h1>Meal Note AI</h1>
+      </div>
+    </header>
+
+    <main>
+      <section class="summary-card">
+        <div>
+          <span style="font-size:10px; color:#b8ccbc; font-weight:700;">TOTAL</span>
+          <div class="total-val"><span id="totalCalories">0</span> <span>kcal</span></div>
+          <p class="sub-info" id="proteinCount">タンパク質 0 g</p>
+        </div>
+      </section>
+
+      <nav class="meal-tabs">
+        <button class="meal-tab is-active" data-tab="breakfast">朝食</button>
+        <button class="meal-tab" data-tab="lunch">昼食</button>
+        <button class="meal-tab" data-tab="dinner">夕食</button>
+      </nav>
+
+      <section class="ai-voice-card">
+        <div class="ai-title">
+          <span>🎙️ 音声入力・Google AI連携</span>
+          <span id="voiceStatus" style="font-size:11px; font-weight: normal; color:var(--muted);">待機中</span>
+        </div>
+        <div class="voice-btn-group">
+          <button class="voice-btn" id="startVoiceBtn">🎤 話して入力</button>
+          <a class="ai-link-btn" id="openGeminiBtn" href="https://gemini.google.com" target="_blank" rel="noreferrer" style="display:none;">AIへ送る ↗</a>
+        </div>
+        <div class="paste-box" id="pasteBox" style="display:none;">
+          <input class="paste-input" id="aiResultInput" placeholder="AIの回答をここに貼り付け">
+          <button class="apply-btn" id="applyAiBtn">反映</button>
+        </div>
+      </section>
+
+      <section id="mealCards">
+        <article class="meal-card is-visible" data-meal="breakfast">
+          <div class="food-list">
+            <div class="food-item">
+              <input class="input-field food-in" placeholder="食品名" type="text">
+              <input class="input-field num-input cal-in" placeholder="kcal" type="number" inputmode="numeric">
+              <input class="input-field num-input pro-in" placeholder="g" type="number" inputmode="decimal">
+            </div>
+            <div class="food-item">
+              <input class="input-field food-in" placeholder="食品名" type="text">
+              <input class="input-field num-input cal-in" placeholder="kcal" type="number" inputmode="numeric">
+              <input class="input-field num-input pro-in" placeholder="g" type="number" inputmode="decimal">
+            </div>
+          </div>
+        </article>
+
+        <article class="meal-card" data-meal="lunch">
+          <div class="food-list">
+            <div class="food-item">
+              <input class="input-field food-in" placeholder="食品名" type="text">
+              <input class="input-field num-input cal-in" placeholder="kcal" type="number" inputmode="numeric">
+              <input class="input-field num-input pro-in" placeholder="g" type="number" inputmode="decimal">
+            </div>
+            <div class="food-item">
+              <input class="input-field food-in" placeholder="食品名" type="text">
+              <input class="input-field num-input cal-in" placeholder="kcal" type="number" inputmode="numeric">
+              <input class="input-field num-input pro-in" placeholder="g" type="number" inputmode="decimal">
+            </div>
+          </div>
+        </article>
+
+        <article class="meal-card" data-meal="dinner">
+          <div class="food-list">
+            <div class="food-item">
+              <input class="input-field food-in" placeholder="食品名" type="text">
+              <input class="input-field num-input cal-in" placeholder="kcal" type="number" inputmode="numeric">
+              <input class="input-field num-input pro-in" placeholder="g" type="number" inputmode="decimal">
+            </div>
+            <div class="food-item">
+              <input class="input-field food-in" placeholder="食品名" type="text">
+              <input class="input-field num-input cal-in" placeholder="kcal" type="number" inputmode="numeric">
+              <input class="input-field num-input pro-in" placeholder="g" type="number" inputmode="decimal">
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <footer>
+      <span>データの保存はブラウザ内で行われます (完全無料)</span>
+    </footer>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'meal-note-ai-state-v1';
+    let currentTab = 'breakfast';
+    let recognizedText = '';
+
+    function $(id) { return document.getElementById(id); }
+
+    function getMealCards() {
+      return Array.from(document.querySelectorAll('.meal-card'));
+    }
+
+    function getFoodRows() {
+      return Array.from(document.querySelectorAll('.food-item'));
+    }
+
+    function saveState() {
+      const state = {};
+      getMealCards().forEach(card => {
+        const mealKey = card.dataset.meal;
+        const rows = Array.from(card.querySelectorAll('.food-item')).map(row => ({
+          food: row.querySelector('.food-in')?.value || '',
+          calories: row.querySelector('.cal-in')?.value || '',
+          protein: row.querySelector('.pro-in')?.value || ''
+        }));
+        state[mealKey] = rows;
+      });
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function loadState() {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+
+      try {
+        const state = JSON.parse(raw);
+        getMealCards().forEach(card => {
+          const mealKey = card.dataset.meal;
+          const rows = state[mealKey] || [];
+          const itemRows = Array.from(card.querySelectorAll('.food-item'));
+
+          rows.forEach((entry, index) => {
+            const row = itemRows[index];
+            if (!row) return;
+            row.querySelector('.food-in').value = entry.food || '';
+            row.querySelector('.cal-in').value = entry.calories || '';
+            row.querySelector('.pro-in').value = entry.protein || '';
+          });
+        });
+      } catch (e) {
+        console.warn('保存データの読込に失敗しました', e);
+      }
+    }
+
+    document.querySelectorAll('.meal-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.meal-tab').forEach(t => t.classList.remove('is-active'));
+        document.querySelectorAll('.meal-card').forEach(c => c.classList.remove('is-visible'));
+        tab.classList.add('is-active');
+        currentTab = tab.dataset.tab;
+        document.querySelector(`[data-meal="${currentTab}"]`).classList.add('is-visible');
+      });
+    });
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition;
+
+    if (SpeechRecognition) {
+      recognition = new SpeechRecognition();
+      recognition.lang = 'ja-JP';
+      recognition.interimResults = false;
+
+      recognition.onstart = () => {
+        $('voiceStatus').textContent = '音声聞き取り中...';
+        $('startVoiceBtn').classList.add('recording');
+        $('startVoiceBtn').textContent = '⏹ 録音停止';
+      };
+
+      recognition.onresult = (event) => {
+        recognizedText = event.results[0][0].transcript;
+        $('voiceStatus').textContent = `認識: "${recognizedText}"`;
+
+        const prompt = `以下の食事の「食品名」「カロリー(kcal)」「タンパク質(g)」の推定値を、必ず次のJSON形式のみで出力してください。他テキスト不要。\nJSON形式: {"food": "食品名", "calories": 000, "protein": 00.0}\n食事内容: ${recognizedText}`;
+
+        const copyPrompt = async () => {
+          try {
+            await navigator.clipboard.writeText(prompt);
+            alert('プロンプトを自動コピーしました！\n「AIへ送る」ボタンを押して貼り付けてください。');
+          } catch (error) {
+            $('aiResultInput').value = prompt;
+            alert('クリップボードの利用ができなかったため、入力欄にプロンプトを表示しました。\nその内容をAIに貼り付けてください。');
+          }
+          $('openGeminiBtn').style.display = 'inline-flex';
+          $('pasteBox').style.display = 'flex';
+        };
+
+        copyPrompt();
+      };
+
+      recognition.onerror = () => {
+        $('voiceStatus').textContent = 'エラーが発生しました';
+        resetVoiceBtn();
+      };
+
+      recognition.onend = () => {
+        resetVoiceBtn();
+      };
+    } else {
+      $('voiceStatus').textContent = 'お使いのブラウザは音声入力非対応です';
+    }
+
+    function resetVoiceBtn() {
+      $('startVoiceBtn').classList.remove('recording');
+      $('startVoiceBtn').textContent = '🎤 話して入力';
+    }
+
+    $('startVoiceBtn').addEventListener('click', () => {
+      if (!recognition) return;
+      try {
+        recognition.start();
+      } catch (error) {
+        recognition.stop();
+      }
+    });
+
+    function parseAiResult(text) {
+      if (!text || !text.trim()) throw new Error('入力が空です');
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error('JSONが見つかりません');
+      const data = JSON.parse(jsonMatch[0]);
+      if (!data || typeof data !== 'object') throw new Error('JSONの形式が不正です');
+      return data;
+    }
+
+    $('applyAiBtn').addEventListener('click', () => {
+      const text = $('aiResultInput').value;
+      try {
+        const data = parseAiResult(text);
+        const card = document.querySelector(`[data-meal="${currentTab}"]`);
+        const emptyRow = Array.from(card.querySelectorAll('.food-item')).find(row => !row.querySelector('.food-in').value);
+        const targetRow = emptyRow || card.querySelectorAll('.food-item')[0];
+
+        targetRow.querySelector('.food-in').value = data.food || recognizedText || '食品';
+        targetRow.querySelector('.cal-in').value = data.calories || '';
+        targetRow.querySelector('.pro-in').value = data.protein || '';
+
+        updateTotals();
+        saveState();
+        $('aiResultInput').value = '';
+        $('voiceStatus').textContent = '反映完了！';
+      } catch (error) {
+        alert('AIの返答から数値を取得できませんでした。テキストを直接確認してください。');
+      }
+    });
+
+    function updateTotals() {
+      let totalCal = 0;
+      let totalPro = 0;
+
+      getFoodRows().forEach(row => {
+        totalCal += Number(row.querySelector('.cal-in').value) || 0;
+        totalPro += Number(row.querySelector('.pro-in').value) || 0;
+      });
+
+      $('totalCalories').textContent = totalCal.toLocaleString();
+      $('proteinCount').textContent = `タンパク質 ${Math.round(totalPro * 10) / 10} g`;
+      saveState();
+    }
+
+    document.querySelectorAll('.input-field').forEach(input => {
+      input.addEventListener('input', () => {
+        updateTotals();
+      });
+    });
+
+    loadState();
+    updateTotals();
+  </script>
+</body>
+</html>
