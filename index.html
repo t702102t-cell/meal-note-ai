@@ -116,14 +116,16 @@
     }
     .copy-btn {
       background: var(--yellow); color: var(--ink); padding: 10px 12px;
-      border-radius: 10px; font-weight: 700; font-size: 13px;
+      border-radius: 10px; font-weight: 700; font-size: 13px; text-decoration: none;
+      display: inline-flex; align-items: center; justify-content: center; text-align: center;
     }
     .text-route {
       margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line);
     }
     .text-route textarea { min-height: 60px; }
     .text-route-btn {
-      width: 100%; margin-top: 6px; padding: 9px 12px; border-radius: 8px;
+      position: relative; z-index: 1; width: 100%; min-height: 48px;
+      margin-top: 6px; padding: 10px 12px; border-radius: 8px; touch-action: manipulation;
       background: var(--green-soft); color: var(--green); font-size: 13px; font-weight: 700;
     }
     .field-label { display: block; margin: 12px 0 5px; font-size: 12px; font-weight: 700; }
@@ -142,6 +144,28 @@
     }
     .chart-section h2 { margin: 0; font-size: 15px; }
     .chart-note { margin: 4px 0 12px; color: var(--muted); font-size: 11px; }
+    .weight-entry { margin-bottom: 14px; }
+    .weight-entry label { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 700; }
+    .weight-entry-controls { display: flex; align-items: center; gap: 8px; }
+    .weight-input {
+      width: 140px; min-height: 44px; padding: 8px 10px; border: 1px solid var(--line);
+      border-radius: 8px; background: var(--card); color: var(--ink); user-select: text;
+    }
+    .weight-save-btn {
+      min-height: 44px; padding: 8px 16px; border-radius: 8px;
+      background: var(--green); color: #fff; font-size: 13px; font-weight: 700;
+    }
+    .weight-status { margin: 5px 0 0; min-height: 17px; color: var(--muted); font-size: 11px; }
+    .weight-chart {
+      width: 100%; min-height: 200px; overflow: hidden;
+    }
+    .weight-chart svg { display: block; width: 100%; height: auto; }
+    .weight-chart-empty { padding: 70px 8px; color: var(--muted); font-size: 12px; text-align: center; }
+    .weight-grid-line { stroke: var(--line); stroke-width: 1; }
+    .weight-line { fill: none; stroke: var(--green); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+    .weight-point { fill: var(--green); stroke: var(--card); stroke-width: 2; }
+    .weight-axis-label, .weight-value-label { fill: var(--muted); font: 11px 'DM Sans', sans-serif; }
+    .weight-value-label { fill: var(--ink); font-weight: 700; }
     .chart-plot {
       height: 190px; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr));
       gap: 5px; position: relative; padding-bottom: 20px;
@@ -241,7 +265,7 @@
         </div>
         <div class="voice-btn-group">
           <button class="voice-btn" id="startVoiceBtn">🎤 話して入力</button>
-          <button class="copy-btn" id="copyPromptBtn" type="button">文面をコピー</button>
+          <a class="copy-btn" id="copyPromptBtn" href="https://gemini.google.com" target="_blank" rel="noreferrer">文面をコピーしてGeminiを開く ↗</a>
         </div>
         <p class="chart-note">最大20秒聞き取ります。途中でボタンを押すと停止できます。</p>
         <div class="text-route">
@@ -251,9 +275,6 @@
         </div>
         <label class="field-label" for="aiPromptInput">AIに送る文面</label>
         <textarea class="prompt-input" id="aiPromptInput" placeholder="「話して入力」の認識結果がここに表示されます。文面をコピーしてAIに貼り付けてください。"></textarea>
-        <div class="prompt-actions">
-          <a class="ai-link-btn" id="openGeminiBtn" href="https://gemini.google.com" target="_blank" rel="noreferrer">Geminiを開く ↗</a>
-        </div>
         <label class="field-label" for="aiResultInput">AIのJSON回答</label>
         <div class="paste-box" id="pasteBox">
           <textarea class="paste-input" id="aiResultInput" placeholder='例: {"items":[{"food":"ごはん","calories":250,"protein":4.0}]}'></textarea>
@@ -311,6 +332,20 @@
 
       <section class="app-view" id="weeklyView">
         <p class="weekly-summary" id="weeklySummary">直近7日間を集計しています</p>
+        <div class="weight-entry">
+          <label for="dailyWeight">今日の体重</label>
+          <div class="weight-entry-controls">
+            <input class="weight-input" id="dailyWeight" type="number" min="20" max="500" step="0.1" inputmode="decimal" placeholder="例：60.5">
+            <span>kg</span>
+            <button class="weight-save-btn" id="saveWeightBtn" type="button">保存</button>
+          </div>
+          <p class="weight-status" id="weightStatus" aria-live="polite"></p>
+        </div>
+        <section class="chart-section">
+          <h2>体重の推移</h2>
+          <p class="chart-note">直近7日間。記録した日のみ表示します。</p>
+          <div class="weight-chart" id="weightChart" role="img" aria-label="直近7日間の体重推移"></div>
+        </section>
         <section class="chart-section">
           <h2>タンパク質</h2>
           <p class="chart-note">1日150gが目標です。目標未満は赤、達成日は緑で表示します。</p>
@@ -413,6 +448,7 @@
         }));
         state[mealKey] = rows;
       });
+      state.weight = $('dailyWeight').value ? Number($('dailyWeight').value) : null;
       dailyRecords[today] = state;
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 2, days: dailyRecords }));
     }
@@ -429,6 +465,7 @@
           dailyRecords[dateKey(new Date())] = stored;
         }
         const state = dailyRecords[dateKey(new Date())] || {};
+        $('dailyWeight').value = state.weight ?? '';
         getMealCards().forEach(card => {
           const mealKey = card.dataset.meal;
           const rows = state[mealKey] || [];
@@ -597,10 +634,11 @@
       }
     });
 
-    $('copyPromptBtn').addEventListener('click', async () => {
+    $('copyPromptBtn').addEventListener('click', async (event) => {
       const prompt = $('aiPromptInput').value.trim();
       if (!prompt) {
-        $('voiceStatus').textContent = '先に「話して入力」を押してください';
+        event.preventDefault();
+        $('voiceStatus').textContent = '先に音声または文章からAI用文面を作成してください';
         return;
       }
       try {
@@ -685,9 +723,114 @@
           key,
           label: `${day.getMonth() + 1}/${day.getDate()}`,
           calories,
-          protein
+          protein,
+          weight: Number.isFinite(Number(meals.weight)) && meals.weight !== null && meals.weight !== ''
+            ? Number(meals.weight)
+            : null
         };
       });
+    }
+
+    function renderWeightChart(days) {
+      const container = $('weightChart');
+      if (!container) return;
+      container.replaceChildren();
+      const entries = days.filter(day => day.weight !== null);
+      if (!entries.length) {
+        const emptyMessage = document.createElement('p');
+        emptyMessage.className = 'weight-chart-empty';
+        emptyMessage.textContent = '体重を入力すると、ここに7日間の折れ線が表示されます';
+        container.append(emptyMessage);
+        return;
+      }
+
+      const svgNamespace = 'http://www.w3.org/2000/svg';
+      const svg = document.createElementNS(svgNamespace, 'svg');
+      svg.setAttribute('viewBox', '0 0 360 210');
+      svg.setAttribute('role', 'img');
+      svg.setAttribute('aria-label', entries.map(day => `${day.label} ${day.weight}kg`).join('、'));
+      const left = 42;
+      const right = 350;
+      const top = 22;
+      const bottom = 166;
+      const values = entries.map(day => day.weight);
+      const spread = Math.max(...values) - Math.min(...values);
+      const padding = Math.max(spread * 0.2, 0.5);
+      const minWeight = Math.floor((Math.min(...values) - padding) * 10) / 10;
+      const maxWeight = Math.ceil((Math.max(...values) + padding) * 10) / 10;
+      const xFor = index => left + (right - left) * index / 6;
+      const yFor = value => bottom - (value - minWeight) / (maxWeight - minWeight) * (bottom - top);
+
+      [0, 0.5, 1].forEach(fraction => {
+        const y = bottom - fraction * (bottom - top);
+        const grid = document.createElementNS(svgNamespace, 'line');
+        grid.setAttribute('class', 'weight-grid-line');
+        grid.setAttribute('x1', left);
+        grid.setAttribute('x2', right);
+        grid.setAttribute('y1', y);
+        grid.setAttribute('y2', y);
+        svg.append(grid);
+
+        const label = document.createElementNS(svgNamespace, 'text');
+        label.setAttribute('class', 'weight-axis-label');
+        label.setAttribute('x', left - 7);
+        label.setAttribute('y', y + 4);
+        label.setAttribute('text-anchor', 'end');
+        label.textContent = (minWeight + (maxWeight - minWeight) * fraction).toFixed(1);
+        svg.append(label);
+      });
+
+      const points = days.map((day, index) => day.weight === null ? null : ({
+        day,
+        x: xFor(index),
+        y: yFor(day.weight)
+      }));
+      let segment = [];
+      const drawSegment = () => {
+        if (segment.length > 1) {
+          const path = document.createElementNS(svgNamespace, 'path');
+          path.setAttribute('class', 'weight-line');
+          path.setAttribute('d', segment.map((point, index) => `${index ? 'L' : 'M'} ${point.x} ${point.y}`).join(' '));
+          svg.append(path);
+        }
+        segment = [];
+      };
+
+      points.forEach(point => {
+        if (!point) {
+          drawSegment();
+          return;
+        }
+        segment.push(point);
+      });
+      drawSegment();
+
+      points.forEach((point, index) => {
+        const dayLabel = document.createElementNS(svgNamespace, 'text');
+        dayLabel.setAttribute('class', 'weight-axis-label');
+        dayLabel.setAttribute('x', xFor(index));
+        dayLabel.setAttribute('y', 194);
+        dayLabel.setAttribute('text-anchor', 'middle');
+        dayLabel.textContent = days[index].label;
+        svg.append(dayLabel);
+        if (!point) return;
+
+        const circle = document.createElementNS(svgNamespace, 'circle');
+        circle.setAttribute('class', 'weight-point');
+        circle.setAttribute('cx', point.x);
+        circle.setAttribute('cy', point.y);
+        circle.setAttribute('r', 5);
+        svg.append(circle);
+
+        const valueLabel = document.createElementNS(svgNamespace, 'text');
+        valueLabel.setAttribute('class', 'weight-value-label');
+        valueLabel.setAttribute('x', point.x);
+        valueLabel.setAttribute('y', point.y - 10);
+        valueLabel.setAttribute('text-anchor', 'middle');
+        valueLabel.textContent = `${point.day.weight.toFixed(1)}kg`;
+        svg.append(valueLabel);
+      });
+      container.append(svg);
     }
 
     function renderBarChart(containerId, days, metric, maxValue, unit, proteinTarget = false) {
@@ -736,9 +879,21 @@
       const proteinTotal = days.reduce((sum, day) => sum + day.protein, 0);
       const calorieTotal = days.reduce((sum, day) => sum + day.calories, 0);
       $('weeklySummary').textContent = `7日間のタンパク質 ${Math.round(proteinTotal)}g ／ カロリー ${Math.round(calorieTotal).toLocaleString()}kcal`;
+      renderWeightChart(days);
       renderBarChart('proteinChart', days, 'protein', proteinMax, 'g', true);
       renderBarChart('calorieChart', days, 'calories', calorieMax, 'kcal');
     }
+
+    $('saveWeightBtn').addEventListener('click', () => {
+      const input = $('dailyWeight');
+      if (input.value && (!Number.isFinite(Number(input.value)) || Number(input.value) < 20 || Number(input.value) > 500)) {
+        $('weightStatus').textContent = '体重を20〜500kgの範囲で入力してください';
+        return;
+      }
+      saveState();
+      renderWeeklyCharts();
+      $('weightStatus').textContent = input.value ? `${Number(input.value).toFixed(1)}kgを保存しました` : '今日の体重記録を削除しました';
+    });
 
     ensureFoodRows();
     document.querySelectorAll('.input-field').forEach(input => {
