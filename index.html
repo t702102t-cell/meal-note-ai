@@ -129,6 +129,7 @@
       margin-top: 6px; padding: 12px; border-radius: 8px; touch-action: manipulation;
       -webkit-tap-highlight-color: transparent; pointer-events: auto;
       background: var(--green-soft); color: var(--green); font-size: 13px; font-weight: 700;
+      text-align: center; text-decoration: none;
     }
     .field-label { display: block; margin: 12px 0 5px; font-size: 12px; font-weight: 700; }
     .paste-input, .prompt-input {
@@ -273,7 +274,7 @@
         <div class="text-route">
           <label class="field-label" for="mealTextInput">文章から入力（食事名・素材名・量）</label>
           <textarea class="paste-input" id="mealTextInput" placeholder="例：鶏むね肉150g、白ごはん1杯、ゆで卵1個"></textarea>
-          <button class="text-route-btn" id="makePromptFromTextBtn" type="button">文章からAI用文面を作成</button>
+          <a class="text-route-btn" id="makePromptFromTextBtn" href="https://gemini.google.com" target="_blank" rel="noreferrer">文章から作成してGeminiを開く ↗</a>
         </div>
         <label class="field-label" for="aiPromptInput">AIに送る文面</label>
         <textarea class="prompt-input" id="aiPromptInput" placeholder="「話して入力」の認識結果がここに表示されます。文面をコピーしてAIに貼り付けてください。"></textarea>
@@ -599,14 +600,36 @@
       return true;
     }
 
-    $('makePromptFromTextBtn').addEventListener('click', () => {
-      setAiPrompt($('mealTextInput').value, '文章入力');
+    $('makePromptFromTextBtn').addEventListener('click', async (event) => {
+      if (!setAiPrompt($('mealTextInput').value, '文章入力')) {
+        event.preventDefault();
+        return;
+      }
+      copyPromptToClipboard($('aiPromptInput').value);
     });
 
     $('mealTextInput').addEventListener('input', () => {
       const description = $('mealTextInput').value.trim();
       if (description) $('aiPromptInput').value = makeAiPrompt(description);
     });
+
+    function copyPromptToClipboard(prompt) {
+      const input = $('aiPromptInput');
+      input.focus();
+      input.select();
+      $('voiceStatus').textContent = 'Geminiを開きます。文面を貼り付けて送信してください';
+      try {
+        navigator.clipboard.writeText(prompt).then(() => {
+          $('voiceStatus').textContent = '文面をコピーしました。Geminiに貼り付けて送信してください';
+        }).catch(() => {
+          input.focus();
+          input.select();
+          $('voiceStatus').textContent = '文面を選択しました。長押ししてコピーしてください';
+        });
+      } catch (error) {
+        $('voiceStatus').textContent = '文面を選択しました。長押ししてコピーしてください';
+      }
+    }
 
     $('startVoiceBtn').addEventListener('click', () => {
       if (!recognition) return;
@@ -641,21 +664,14 @@
       }
     });
 
-    $('copyPromptBtn').addEventListener('click', async (event) => {
+    $('copyPromptBtn').addEventListener('click', (event) => {
       const prompt = $('aiPromptInput').value.trim();
       if (!prompt) {
         event.preventDefault();
         $('voiceStatus').textContent = '先に音声または文章からAI用文面を作成してください';
         return;
       }
-      try {
-        await navigator.clipboard.writeText(prompt);
-        $('voiceStatus').textContent = 'AIに送る文面をコピーしました';
-      } catch (error) {
-        $('aiPromptInput').focus();
-        $('aiPromptInput').select();
-        $('voiceStatus').textContent = '文面を選択しました。長押ししてコピーしてください';
-      }
+      copyPromptToClipboard(prompt);
     });
 
     function parseAiResult(text) {
